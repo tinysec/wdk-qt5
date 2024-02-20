@@ -1,4 +1,4 @@
-// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+﻿// Copyright (c) 2013 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -95,7 +95,7 @@ class NET_EXPORT_PRIVATE CryptoHandshakeMessage {
   QuicErrorCode GetUint64(QuicTag tag, uint64_t* out) const;
 
   // size returns 4 (message tag) + 2 (uint16_t, number of entries) +
-  // (4 (tag) + 4 (end offset))*tag_value_map_.size() + ∑ value sizes.
+  // (4 (tag) + 4 (end offset))*tag_value_map_.size() + âˆ‘ value sizes.
   size_t size() const;
 
   // set_minimum_size sets the minimum number of bytes that the message should

@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+﻿// Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -2490,7 +2490,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
   //   Identifier ':' Statement
   //
   // ExpressionStatement[Yield] :
-  //   [lookahead ∉ {{, function, class, let [}] Expression[In, ?Yield] ;
+  //   [lookahead âˆ‰ {{, function, class, let [}] Expression[In, ?Yield] ;
 
   int pos = peek_position();
 

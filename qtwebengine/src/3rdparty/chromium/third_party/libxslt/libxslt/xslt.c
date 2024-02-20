@@ -1,4 +1,4 @@
-/*
+﻿/*
  * xslt.c: Implemetation of an XSL Transformation 1.0 engine
  *
  * Reference:
@@ -5183,7 +5183,7 @@ xsltParseXSLTTemplate(xsltCompilerCtxtPtr cctxt, xmlNodePtr templNode) {
 	/*
 	* TODO: We need a standardized function for extraction
 	*  of namespace names and local names from QNames.
-	*  Don't use xsltGetQNameURI() as it cannot channe�
+	*  Don't use xsltGetQNameURI() as it cannot channeï¿½
 	*  reports through the context.
 	*/
 	modeURI = xsltGetQNameURI(templNode, &prop);

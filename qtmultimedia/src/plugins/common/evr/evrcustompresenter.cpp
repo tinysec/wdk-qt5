@@ -47,6 +47,8 @@
 #include <float.h>
 #include <evcode.h>
 
+DEFINE_MEDIATYPE_GUID( MFVideoFormat_I420,      FCC('I420') );
+
 const static MFRatio g_DefaultFrameRate = { 30, 1 };
 static const DWORD SCHEDULER_TIMEOUT = 5000;
 static const MFTIME ONE_SECOND = 10000000;

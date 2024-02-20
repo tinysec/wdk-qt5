@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Google Inc.
+﻿/* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -49,7 +49,7 @@ extern "C" {
  * authenticity for authenticated encryption. For formal definitions see
  * Bellare and Namprempre, "Authenticated encryption: relations among notions
  * and analysis of the generic composition paradigm," Lecture Notes in Computer
- * Science B<1976> (2000), 531–545,
+ * Science B<1976> (2000), 531â€“545,
  * http://www-cse.ucsd.edu/~mihir/papers/oem.html.
  *
  * When sealing messages, a nonce must be given. The length of the nonce is

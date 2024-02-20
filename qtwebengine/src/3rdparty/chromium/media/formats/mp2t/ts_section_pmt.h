@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+﻿// Copyright 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,7 @@ class TsSectionPmt : public TsSectionPsi {
  public:
   // RegisterPesCb::Run(int pes_pid, int stream_type);
   // Stream type is defined in
-  // "Table 2-34 – Stream type assignments" in H.222
+  // "Table 2-34 â€“ Stream type assignments" in H.222
   // TODO(damienv): add the program number.
   typedef base::Callback<void(int, int)> RegisterPesCb;
 

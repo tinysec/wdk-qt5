@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Google Inc.
+﻿/* Copyright (c) 2014, Google Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -84,7 +84,7 @@ void METHOD_unref(void *method);
 /* openssl_method_common_st contains the common part of all method structures.
  * This must be the first member of all method structures. */
 struct openssl_method_common_st {
-  int references;  /* dummy – not used. */
+  int references;  /* dummy â€“ not used. */
   char is_static;
 };
 

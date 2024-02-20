@@ -1,4 +1,4 @@
-/* vim: set ts=8 sw=8 noexpandtab: */
+﻿/* vim: set ts=8 sw=8 noexpandtab: */
 //  qcms
 //  Copyright (C) 2009 Mozilla Foundation
 //

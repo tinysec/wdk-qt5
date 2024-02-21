@@ -460,12 +460,12 @@ namespace {
 
     ULONG STDMETHODCALLTYPE DirectWriteFontFileLoader::AddRef()
     {
-        return InterlockedIncrement(&m_referenceCount);
+        return (ULONG)InterlockedIncrement( (LONG*)&m_referenceCount);
     }
 
     ULONG STDMETHODCALLTYPE DirectWriteFontFileLoader::Release()
     {
-        ULONG newCount = InterlockedDecrement(&m_referenceCount);
+        ULONG newCount = (ULONG)InterlockedDecrement( (LONG*)&m_referenceCount);
         if (newCount == 0)
             delete this;
         return newCount;

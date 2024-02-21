@@ -370,12 +370,12 @@ namespace {
 
     ULONG STDMETHODCALLTYPE DirectWriteFontFileStream::AddRef()
     {
-        return InterlockedIncrement(&m_referenceCount);
+        return (ULONG)InterlockedIncrement( (long*)&m_referenceCount);
     }
 
     ULONG STDMETHODCALLTYPE DirectWriteFontFileStream::Release()
     {
-        ULONG newCount = InterlockedDecrement(&m_referenceCount);
+        ULONG newCount = (ULONG)InterlockedDecrement( (long*)&m_referenceCount);
         if (newCount == 0)
             delete this;
         return newCount;

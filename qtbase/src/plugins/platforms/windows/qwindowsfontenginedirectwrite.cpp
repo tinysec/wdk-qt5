@@ -139,12 +139,12 @@ namespace {
 
     IFACEMETHODIMP_(unsigned long) GeometrySink::AddRef()
     {
-        return InterlockedIncrement(&m_refCount);
+        return (unsigned long)InterlockedIncrement((long*)&m_refCount);
     }
 
     IFACEMETHODIMP_(unsigned long) GeometrySink::Release()
     {
-        unsigned long newCount = InterlockedDecrement(&m_refCount);
+        unsigned long newCount = (unsigned long)InterlockedDecrement((long*)&m_refCount);
         if (newCount == 0)
         {
             delete this;

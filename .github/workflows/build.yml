@@ -2,22 +2,54 @@ name: build-qt5-wdk7
 
 # Builds Qt 5.6.3 (qtbase) with the WDK 7.1 toolchain so the output depends only
 # on the system msvcrt.dll (Windows XP compatible, no VC redistributable), then
-# publishes CMake-consumable packages (i386/amd64 x shared/static) as Release
-# assets.
+# publishes CMake-consumable packages.
 #
-# Toolchain comes from tinysec/setup-wdk7 (installs WDK 7.1 on the hosted runner;
-# no Visual Studio / self-hosted runner needed). cl 15.00 = the VS2008 SP1 compiler.
+# Stages (modeled on the z3 floating-release pattern):
+#   1. version  - compute the alias (v5.6.3) and versioned (v5.6.3.<build>) tags.
+#   2. build    - matrix of arch x link (i386/amd64 x shared/static) prebuilt pkgs.
+#   3. release  - immutable per-build release on v5.6.3.<build> (marked latest) and
+#                 a rolling alias release/tag v5.6.3 whose asset names DROP the
+#                 build number, giving downstream stable FetchContent URLs:
+#                   releases/download/v5.6.3/qt-wdk7-<link>-<arch>.7z
+#
+# Toolchain comes from tinysec/setup-wdk7 (WDK 7.1 on a hosted runner; no Visual
+# Studio / self-hosted runner). cl 15.00 = the VS2008 SP1 compiler. Platform is
+# Windows-only by nature; "multi-platform" here means the i386/amd64 arch matrix.
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, main ]
   workflow_dispatch:
 
 permissions:
-  contents: write   # needed to create the Release
+  contents: write
+
+env:
+  VERSION_MAJOR: "5"
+  VERSION_MINOR: "6"
+  VERSION_PATCH: "3"
 
 jobs:
+  # 1. Compute version strings once and share them.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+      alias: ${{ steps.compute.outputs.alias }}
+    steps:
+      - name: Compute version strings
+        id: compute
+        run: |
+          ALIAS="v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}"
+          VERSION="${ALIAS}.${GITHUB_RUN_NUMBER}"
+          echo "alias=${ALIAS}"   >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "Alias tag:     ${ALIAS}"
+          echo "Versioned tag: ${VERSION}"
+
+  # 2. Build the prebuilt variants. Each (arch, link) is its own parallel job.
   build:
+    needs: version
     runs-on: windows-2022
     strategy:
       fail-fast: false
@@ -27,25 +59,18 @@ jobs:
     env:
       QT_ARCH: ${{ matrix.arch }}
       QT_LINK: ${{ matrix.link }}
-
     steps:
       - name: Checkout (sources are vendored, no submodule init needed)
         uses: actions/checkout@v4
 
       - name: Setup WDK 7.1 toolchain
-        id: wdk7
         uses: tinysec/setup-wdk7@v1
-
-      - name: Compute version
-        id: ver
-        shell: bash
-        run: echo "version=5.6.3.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
       - name: Configure + build qtbase (${{ matrix.arch }} ${{ matrix.link }})
         shell: cmd
         run: call hack\wdk-qt\clean-build.bat
 
-      - name: Verify the build produced the expected outputs
+      - name: Verify expected outputs
         shell: cmd
         run: |
           set "B=build-wdk-qtbase-%QT_ARCH%-%QT_LINK%"
@@ -62,7 +87,7 @@ jobs:
         shell: cmd
         run: call hack\wdk-qt\install.bat
 
-      - name: End-to-end smoke test (build + run a CMake find_package app)
+      - name: End-to-end smoke test (CMake find_package app)
         shell: cmd
         run: call hack\wdk-qt\test-cmake-consume.bat
 
@@ -72,34 +97,75 @@ jobs:
           $root = if ($env:WDK7_ROOT) { $env:WDK7_ROOT } else { $env:W7BASE }
           $link = "$root\bin\x86\x86\link.exe"
           $b = "build-wdk-qtbase-$env:QT_ARCH-$env:QT_LINK"
-          if ($env:QT_LINK -eq "shared") { $target = "$b\lib\Qt5Core.dll" } else { $target = "$b\lib\Qt5Core.lib" }
-          $imports = & $link /dump /imports $target 2>&1 | Select-String -Pattern '\.dll'
+          if ($env:QT_LINK -eq "shared") { $t = "$b\lib\Qt5Core.dll" } else { $t = "$b\lib\Qt5Core.lib" }
+          $imports = & $link /dump /imports $t 2>&1 | Select-String -Pattern '\.dll'
           $imports
           if ($imports -match 'msvcr90|msvcp90') { Write-Error 'VC runtime dependency found!'; exit 1 }
           Write-Output 'OK: no msvcr90/msvcp90 dependency.'
 
-      - name: Package install prefix
+      - name: Package (versioned asset name)
         shell: pwsh
         run: |
-          $name = "qt-5.6.3-wdk7-$env:QT_LINK-$env:QT_ARCH"
+          $name = "qt-${{ needs.version.outputs.version }}-wdk7-$env:QT_LINK-$env:QT_ARCH"
           7z a -mx=9 "$name.7z" "build-wdk-qtbase-$env:QT_ARCH-$env:QT_LINK\install\*"
           Write-Output "Packaged $name.7z"
 
-      - name: Upload build artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: qt-5.6.3-wdk7-${{ matrix.link }}-${{ matrix.arch }}
-          path: qt-5.6.3-wdk7-${{ matrix.link }}-${{ matrix.arch }}.7z
+          name: qt-wdk7-${{ matrix.link }}-${{ matrix.arch }}
+          path: qt-*.7z
 
-      - name: Publish to Release (default branch only)
-        if: github.ref == 'refs/heads/master'
-        shell: bash
+  # 3. Publish the immutable versioned release and re-point the floating alias.
+  release:
+    needs: [ version, build ]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Publish versioned release + refresh floating alias
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+          ALIAS: ${{ needs.version.outputs.alias }}
         run: |
-          tag="v${{ steps.ver.outputs.version }}"
-          asset="qt-5.6.3-wdk7-${{ matrix.link }}-${{ matrix.arch }}.7z"
-          gh release view "$tag" >/dev/null 2>&1 || \
-            gh release create "$tag" --title "Qt 5.6.3 (WDK7, XP, no-redist) $tag" \
-              --notes "qtbase built with the WDK 7.1 toolchain; depends only on the system msvcrt.dll. i386/amd64 x shared/static variants. Consume via cmake/qt5.cmake (FetchContent) + the setup-wdk7 toolchain."
-          gh release upload "$tag" "$asset" --clobber
+          set -euo pipefail
+
+          # 1. Immutable per-build release on v5.6.3.<build>, kept as "latest".
+          #    Assets keep the build number (qt-v5.6.3.7-wdk7-shared-i386.7z).
+          gh release create "${VERSION}" \
+            --target "${GITHUB_SHA}" \
+            --title "${VERSION}" \
+            --notes "Automated WDK7 build of Qt ${ALIAS#v} (build ${GITHUB_RUN_NUMBER}). i386/amd64 x shared/static; depends only on the system msvcrt.dll." \
+            --latest \
+            $(find dist -type f | sort)
+
+          # 2. Force-move the 3-part alias tag to this commit.
+          git tag --force "${ALIAS}" "${GITHUB_SHA}"
+          git push --force origin "refs/tags/${ALIAS}"
+
+          # 3. Rolling alias release: asset names DROP the build number so the
+          #    download URLs are stable across builds, e.g.
+          #    releases/download/v5.6.3/qt-wdk7-shared-i386.7z. Not marked latest.
+          mkdir -p alias
+          for f in $(find dist -type f); do
+            base="$(basename "${f}")"
+            cp "${f}" "alias/qt-${base#qt-${VERSION}-}"
+          done
+
+          gh release delete "${ALIAS}" --yes --cleanup-tag=false || true
+          gh release create "${ALIAS}" \
+            --target "${GITHUB_SHA}" \
+            --title "${ALIAS} (latest: ${VERSION})" \
+            --notes "Rolling release tracking the latest WDK7 Qt build (currently ${VERSION}). Asset names are stable across builds for fixed FetchContent URLs." \
+            --latest=false \
+            $(find alias -type f | sort)

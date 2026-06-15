@@ -21,8 +21,11 @@ HEADERS +=  \
 
 OTHER_FILES += windows.json
 
-# WDK 7.1 has no comsupp.lib; provide the one _bstr_t symbol the MSAA bridge needs.
-SOURCES += $$PWD/../../../../../hack/wdk-qt/shim/comsupp_stub.cpp
+# WDK 7.1 has no comsupp.lib; provide the one _bstr_t symbol the MSAA bridge
+# needs. Only for the WDK spec -- toolchains that ship comsupp.lib (VS) would
+# otherwise get a duplicate _com_issue_error.
+contains(QMAKE_XSPEC, win32-wdk7-msvc2008): \
+    SOURCES += $$PWD/../../../../../hack/wdk-qt/shim/comsupp_stub.cpp
 
 PLUGIN_TYPE = platforms
 PLUGIN_CLASS_NAME = QWindowsIntegrationPlugin

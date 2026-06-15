@@ -31,6 +31,7 @@ set(QT5_VERSION  "5.6.3"    CACHE STRING "Qt5 point release built by this repo")
 # a versioned tag (e.g. v5.6.3.42) for a reproducible build.
 set(QT5_RELEASE  "v5.6.3"   CACHE STRING "Prebuilt release tag (alias or versioned)")
 set(QT5_REPO     "https://github.com/tinysec/qt563" CACHE STRING "Repo base URL")
+set(QT5_TOKEN    ""          CACHE STRING "GitHub token for prebuilt download from a private repo (else from GH_TOKEN/GITHUB_TOKEN env)")
 set_property(CACHE QT5_PROVIDER PROPERTY STRINGS prebuilt source)
 set_property(CACHE QT5_LINK     PROPERTY STRINGS shared static)
 set_property(CACHE QT5_ARCH     PROPERTY STRINGS i386 amd64)
@@ -48,8 +49,26 @@ function(qt5_provide)
         else()
             set(_asset "qt-${QT5_RELEASE}-wdk7-${QT5_LINK}-${QT5_ARCH}.7z")
         endif()
-        FetchContent_Declare(qt5_pkg
-            URL "${QT5_REPO}/releases/download/${QT5_RELEASE}/${_asset}")
+
+        # Private-repo release assets need a token. Default it from the common
+        # environment variables; pass -DQT5_TOKEN=... to override.
+        if(QT5_TOKEN STREQUAL "" AND DEFINED ENV{GH_TOKEN})
+            set(QT5_TOKEN "$ENV{GH_TOKEN}")
+        endif()
+        if(QT5_TOKEN STREQUAL "" AND DEFINED ENV{GITHUB_TOKEN})
+            set(QT5_TOKEN "$ENV{GITHUB_TOKEN}")
+        endif()
+
+        if(NOT QT5_TOKEN STREQUAL "")
+            FetchContent_Declare(qt5_pkg
+                URL "${QT5_REPO}/releases/download/${QT5_RELEASE}/${_asset}"
+                DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+                HTTP_HEADER "Authorization: Bearer ${QT5_TOKEN}")
+        else()
+            FetchContent_Declare(qt5_pkg
+                URL "${QT5_REPO}/releases/download/${QT5_RELEASE}/${_asset}"
+                DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+        endif()
         FetchContent_MakeAvailable(qt5_pkg)
 
         set(_prefix "${qt5_pkg_SOURCE_DIR}")
@@ -72,6 +91,13 @@ function(qt5_provide)
                 message(FATAL_ERROR "qt5: source build failed (exit ${_rc}).")
             endif()
         endif()
+    endif()
+
+    # Normalize: the prefix may be at the populated root or inside an install/
+    # subdir, depending on how the archive was packed.
+    if(NOT EXISTS "${_prefix}/lib/cmake/Qt5Core/Qt5CoreConfig.cmake"
+       AND EXISTS "${_prefix}/install/lib/cmake/Qt5Core/Qt5CoreConfig.cmake")
+        set(_prefix "${_prefix}/install")
     endif()
 
     if(NOT EXISTS "${_prefix}/lib/cmake/Qt5Core/Qt5CoreConfig.cmake")

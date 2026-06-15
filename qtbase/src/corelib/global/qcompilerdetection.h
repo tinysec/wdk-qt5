@@ -94,10 +94,12 @@
 #  define Q_DECL_DEPRECATED_X(text) __declspec(deprecated(text))
 #  define Q_DECL_EXPORT __declspec(dllexport)
 #  define Q_DECL_IMPORT __declspec(dllimport)
-#  if _MSC_VER >= 1800
+#  if _MSC_VER >= 1800 && !defined(_STL70_)
 #    define QT_MAKE_UNCHECKED_ARRAY_ITERATOR(x) stdext::make_unchecked_array_iterator(x)
 #  endif
-#  if _MSC_VER >= 1500
+#  if _MSC_VER >= 1500 && !defined(_STL70_)
+/* WDK 7.1 stl70 <iterator> lacks stdext::make_checked_array_iterator; fall back
+   to the raw pointer (defined later via the generic #ifndef block). */
 #    define QT_MAKE_CHECKED_ARRAY_ITERATOR(x, N) stdext::make_checked_array_iterator(x, size_t(N))
 #  endif
 /* Intel C++ disguising as Visual C++: the `using' keyword avoids warnings */

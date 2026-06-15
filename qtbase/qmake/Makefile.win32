@@ -19,6 +19,9 @@ CXX               = cl
 LINKER            = link
 !  if "$(QMAKESPEC)" == "win32-msvc2005"
 CFLAGS_EXTRA      = /Zc:wchar_t-
+!  elseif "$(QMAKESPEC)" == "win32-wdk7-msvc2008"
+CFLAGS_EXTRA      = /MP /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /D_STL70_ /D_STATIC_CPPLIB /D_DLL=1 /D_MT=1 -FI$(SOURCE_PATH)\mkspecs\win32-wdk7-msvc2008\wdk-compat.h $(CFLAGS_CRT)
+LFLAGS_CRT        = /MANIFEST:NO /NODEFAULTLIB:msvcrtd /DEFAULTLIB:ntstc_msvcrt /DEFAULTLIB:msvcrt
 !  elseif "$(QMAKESPEC)" == "win32-msvc2008" || "$(QMAKESPEC)" == "win32-msvc2010" || "$(QMAKESPEC)" == "win32-msvc2012" || "$(QMAKESPEC)" == "win32-msvc2013"
 CFLAGS_EXTRA      = /MP /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS $(CFLAGS_CRT)
 !  elseif "$(QMAKESPEC)" == "win32-msvc2015" || "$(QMAKESPEC)" == "win32-msvc2017"
@@ -46,7 +49,7 @@ CFLAGS   = -Yuqmake_pch.h -FIqmake_pch.h -Fpqmake_pch.pch $(CFLAGS_BARE) $(CFLAG
 CXXFLAGS_BARE = $(CFLAGS_BARE)
 CXXFLAGS = $(CFLAGS)
 
-LFLAGS	    =
+LFLAGS	    = $(LFLAGS_CRT)
 LIBS	    = ole32.lib advapi32.lib shell32.lib
 LINKQMAKE   = $(LINKER) $(LFLAGS) -OUT:qmake.exe $(OBJS) $(QTOBJS) $(LIBS)
 ADDCLEAN    = qmake.pdb qmake.ilk

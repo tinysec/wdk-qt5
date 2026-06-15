@@ -21,6 +21,9 @@ HEADERS +=  \
 
 OTHER_FILES += windows.json
 
+# WDK 7.1 has no comsupp.lib; provide the one _bstr_t symbol the MSAA bridge needs.
+SOURCES += $$PWD/../../../../../hack/wdk-qt/shim/comsupp_stub.cpp
+
 PLUGIN_TYPE = platforms
 PLUGIN_CLASS_NAME = QWindowsIntegrationPlugin
 !equals(TARGET, $$QT_DEFAULT_QPA_PLUGIN): PLUGIN_EXTENDS = -

@@ -1,0 +1,24 @@
+# WDK7 Qt build outputs (shadow builds; bare dir + one per arch/link variant)
+/build-wdk-qtbase*/
+/build-extra-*/
+/build-wdk-*.log
+
+# configure-generated forwarding headers written into the source tree
+/qtbase/include/QtCore/qconfig.h
+/qtbase/include/QtCore/qfeatures.h
+/qtbase/include/QtCore/QtConfig
+
+# test/consumer build artifacts under hack/wdk-qt
+hack/wdk-qt/cmake-consumer/build*/
+hack/wdk-qt/testapp/build*/
+hack/wdk-qt/testapp/release/
+hack/wdk-qt/testapp/debug/
+hack/wdk-qt/testapp/Makefile*
+hack/wdk-qt/testapp/*.obj
+hack/wdk-qt/testapp/object_script.*
+hack/wdk-qt/*.log
+
+# probe artifacts (keep probe.cpp + the .bat scripts)
+hack/wdk-probe/*.exe
+hack/wdk-probe/*.obj
+hack/wdk-probe/*.log

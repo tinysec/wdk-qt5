@@ -1,0 +1,105 @@
+name: build-qt5-wdk7
+
+# Builds Qt 5.6.3 (qtbase) with the WDK 7.1 toolchain so the output depends only
+# on the system msvcrt.dll (Windows XP compatible, no VC redistributable), then
+# publishes CMake-consumable packages (i386/amd64 x shared/static) as Release
+# assets.
+#
+# Toolchain comes from tinysec/setup-wdk7 (installs WDK 7.1 on the hosted runner;
+# no Visual Studio / self-hosted runner needed). cl 15.00 = the VS2008 SP1 compiler.
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create the Release
+
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ i386, amd64 ]
+        link: [ shared, static ]
+    env:
+      QT_ARCH: ${{ matrix.arch }}
+      QT_LINK: ${{ matrix.link }}
+
+    steps:
+      - name: Checkout (sources are vendored, no submodule init needed)
+        uses: actions/checkout@v4
+
+      - name: Setup WDK 7.1 toolchain
+        id: wdk7
+        uses: tinysec/setup-wdk7@v1
+
+      - name: Compute version
+        id: ver
+        shell: bash
+        run: echo "version=5.6.3.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure + build qtbase (${{ matrix.arch }} ${{ matrix.link }})
+        shell: cmd
+        run: call hack\wdk-qt\clean-build.bat
+
+      - name: Verify the build produced the expected outputs
+        shell: cmd
+        run: |
+          set "B=build-wdk-qtbase-%QT_ARCH%-%QT_LINK%"
+          if /I "%QT_LINK%"=="shared" (
+            if not exist "%B%\lib\Qt5Core.dll" exit /b 1
+            if not exist "%B%\plugins\platforms\qwindows.dll" exit /b 1
+          ) else (
+            if not exist "%B%\lib\Qt5Core.lib" exit /b 1
+            if not exist "%B%\plugins\platforms\qwindows.lib" exit /b 1
+          )
+          echo OK
+
+      - name: Install (+ patch static CMake deps)
+        shell: cmd
+        run: call hack\wdk-qt\install.bat
+
+      - name: End-to-end smoke test (build + run a CMake find_package app)
+        shell: cmd
+        run: call hack\wdk-qt\test-cmake-consume.bat
+
+      - name: Verify zero-redist (no msvcr90/msvcp90)
+        shell: pwsh
+        run: |
+          $root = if ($env:WDK7_ROOT) { $env:WDK7_ROOT } else { $env:W7BASE }
+          $link = "$root\bin\x86\x86\link.exe"
+          $b = "build-wdk-qtbase-$env:QT_ARCH-$env:QT_LINK"
+          if ($env:QT_LINK -eq "shared") { $target = "$b\lib\Qt5Core.dll" } else { $target = "$b\lib\Qt5Core.lib" }
+          $imports = & $link /dump /imports $target 2>&1 | Select-String -Pattern '\.dll'
+          $imports
+          if ($imports -match 'msvcr90|msvcp90') { Write-Error 'VC runtime dependency found!'; exit 1 }
+          Write-Output 'OK: no msvcr90/msvcp90 dependency.'
+
+      - name: Package install prefix
+        shell: pwsh
+        run: |
+          $name = "qt-5.6.3-wdk7-$env:QT_LINK-$env:QT_ARCH"
+          7z a -mx=9 "$name.7z" "build-wdk-qtbase-$env:QT_ARCH-$env:QT_LINK\install\*"
+          Write-Output "Packaged $name.7z"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qt-5.6.3-wdk7-${{ matrix.link }}-${{ matrix.arch }}
+          path: qt-5.6.3-wdk7-${{ matrix.link }}-${{ matrix.arch }}.7z
+
+      - name: Publish to Release (default branch only)
+        if: github.ref == 'refs/heads/master'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${{ steps.ver.outputs.version }}"
+          asset="qt-5.6.3-wdk7-${{ matrix.link }}-${{ matrix.arch }}.7z"
+          gh release view "$tag" >/dev/null 2>&1 || \
+            gh release create "$tag" --title "Qt 5.6.3 (WDK7, XP, no-redist) $tag" \
+              --notes "qtbase built with the WDK 7.1 toolchain; depends only on the system msvcrt.dll. i386/amd64 x shared/static variants. Consume via cmake/qt5.cmake (FetchContent) + the setup-wdk7 toolchain."
+          gh release upload "$tag" "$asset" --clobber

@@ -26,7 +26,10 @@ set(QT5_PROVIDER "prebuilt" CACHE STRING "Qt5 provider: prebuilt | source")
 set(QT5_LINK     "shared"   CACHE STRING "Qt5 link mode: shared | static")
 set(QT5_ARCH     "i386"     CACHE STRING "Qt5 arch: i386 | amd64")
 set(QT5_VERSION  "5.6.3"    CACHE STRING "Qt5 point release built by this repo")
-set(QT5_RELEASE  "v5.6.3.1" CACHE STRING "Prebuilt release tag")
+# Default to the FLOATING alias tag: it always points at the latest CI build and
+# its asset names are stable (no build number), so this URL never changes. Pin to
+# a versioned tag (e.g. v5.6.3.42) for a reproducible build.
+set(QT5_RELEASE  "v5.6.3"   CACHE STRING "Prebuilt release tag (alias or versioned)")
 set(QT5_REPO     "https://github.com/tinysec/qt563" CACHE STRING "Repo base URL")
 set_property(CACHE QT5_PROVIDER PROPERTY STRINGS prebuilt source)
 set_property(CACHE QT5_LINK     PROPERTY STRINGS shared static)
@@ -38,7 +41,13 @@ function(qt5_provide)
     if(QT5_PROVIDER STREQUAL "prebuilt")
         # 1. Download the matching prebuilt package. The .7z contains the install
         #    prefix at its root (include/, lib/, bin/, plugins/, lib/cmake/).
-        set(_asset "qt-${QT5_VERSION}-wdk7-${QT5_LINK}-${QT5_ARCH}.7z")
+        #    The floating alias release (vX.Y.Z) carries stable asset names; a
+        #    pinned versioned release (vX.Y.Z.N) carries build-numbered names.
+        if(QT5_RELEASE MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+$")
+            set(_asset "qt-wdk7-${QT5_LINK}-${QT5_ARCH}.7z")
+        else()
+            set(_asset "qt-${QT5_RELEASE}-wdk7-${QT5_LINK}-${QT5_ARCH}.7z")
+        endif()
         FetchContent_Declare(qt5_pkg
             URL "${QT5_REPO}/releases/download/${QT5_RELEASE}/${_asset}")
         FetchContent_MakeAvailable(qt5_pkg)

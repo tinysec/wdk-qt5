@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.16)
+project(qtcmaketest CXX)
+cmake_policy(SET CMP0091 NEW)
+set(CMAKE_AUTOMOC ON)
+find_package(Qt5 5.6 REQUIRED COMPONENTS Core)
+add_executable(app main.cpp)
+target_link_libraries(app Qt5::Core)

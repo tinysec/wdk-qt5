@@ -2356,8 +2356,15 @@ static bool qt_localtime(qint64 msecsSinceEpoch, QDate *localDate, QTime *localT
     if (res)
         valid = true;
 #elif defined(_MSC_VER) && _MSC_VER >= 1400
+#  ifdef _USE_32BIT_TIME_T
+    // WDK 7.1 CRT defaults time_t to 32-bit; widen for the 64-bit CRT call.
+    __time64_t secs64 = secsSinceEpoch;
+    if (!_localtime64_s(&local, &secs64))
+        valid = true;
+#  else
     if (!_localtime64_s(&local, &secsSinceEpoch))
         valid = true;
+#  endif
 #else
     // Returns shared static data which may be overwritten at any time
     // So copy the result asap

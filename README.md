@@ -11,10 +11,11 @@ straight from CMake via `find_package(Qt5)` / FetchContent.**
 ## Overview
 
 Qt 5.6.3 is the last Qt release that supports Windows XP. This repository builds
-its `qtbase` with the **Windows Driver Kit 7.1** toolchain (`cl 15.00`, the
-VS2008 SP1 compiler) using a recipe that links the **dynamic system
-`msvcrt.dll`** for the C runtime and **statically links the C++ standard
-library**. The result:
+a **trimmed `qtbase`** (the desktop-widgets essentials, no OpenGL/DBus/SQL) plus
+**`qtcharts`** and the **`lrelease` / `lupdate`** i18n tools with the **Windows
+Driver Kit 7.1** toolchain (`cl 15.00`, the VS2008 SP1 compiler), using a recipe
+that links the **dynamic system `msvcrt.dll`** for the C runtime and **statically
+links the C++ standard library**. The result:
 
 - depends only on DLLs that ship with Windows (`msvcrt.dll`, `kernel32.dll`, …) —
   **no `msvcr90.dll` / `msvcp90.dll`, no VC++ redistributable to install**;
@@ -27,17 +28,24 @@ library**. The result:
 
 - ✅ **Zero redistributable** — the only C runtime dependency is the system
   `msvcrt.dll`; PE subsystem version `5.00`, so binaries load on Windows XP.
-- ✅ **Full `qtbase`** — Core, Gui, Widgets, Network, Sql, Xml, PrintSupport,
-  OpenGL, Concurrent, Test, DBus, plus the `qwindows` platform plugin and the
-  `moc` / `rcc` / `uic` / `qmake` tools.
-- ✅ **Four prebuilt variants** — `i386` / `amd64` × `shared` / `static`.
+- ✅ **A minimal desktop-widgets toolkit + Charts** — `Core`, `Gui`, `Widgets`
+  and **`Charts`**, plus `Network`, `Xml`, `Concurrent`, `Test`, `PrintSupport`;
+  the `qwindows` platform plugin and image-format plugins; and the `qmake` /
+  `moc` / `rcc` / `uic` tools. **OpenGL, DBus and SQL are disabled**, and the
+  QML/Quick, Multimedia, WebEngine, SVG, … modules are not built — this is a
+  trimmed UI library, not the full Qt.
+- ✅ **i18n** — runtime `QTranslator` / `QLocale` / `tr()` is in `Core`; the
+  package also ships `lrelease` / `lupdate` to compile (`.ts` → `.qm`) and
+  extract (`source` → `.ts`) translations.
+- ✅ **Static by default** — links Qt into one self-contained `.exe` that depends
+  only on `msvcrt.dll`; set `QT5_SHARED=ON` for DLLs. Four prebuilt variants:
+  `i386` / `amd64` × `shared` / `static`.
 - ✅ **CMake-native** — relocatable `Qt5Config.cmake` files; `find_package(Qt5)`,
   `AUTOMOC` / `AUTORCC` / `AUTOUIC` all work.
 - ✅ **Prebuilt or from source** — one boolean (`QT5_FROM_SOURCE`) switches
   between downloading a release asset and building locally.
 - ✅ **Floating release** — a `v5.6.3` alias tag/release always points at the
-  latest CI build with **stable asset URLs**, alongside immutable `v5.6.3.<build>`
-  releases for reproducible pinning.
+  latest CI build with **stable asset URLs**.
 - ✅ **No Visual Studio required**, on the build side or the consumer side.
 
 ## Prebuilt packages
@@ -120,6 +128,17 @@ next to the `.exe` so it runs without putting the Qt `bin/` on `PATH`.
 | `QT5_FROM_SOURCE` | BOOL | `OFF` | `OFF` = download prebuilt, `ON` = build from source |
 | `QT5_ARCH` | STRING | follows `WDK7_ARCH` | `i386` or `amd64` |
 
+### Translations (i18n)
+
+Runtime translation is built in (`QTranslator`, `QLocale`, `tr()`). To author
+your own translations, the package ships `lrelease` / `lupdate` in `bin/`:
+
+```bash
+lupdate main.cpp -ts app_zh_CN.ts   # extract tr() strings into a .ts
+# ... translate app_zh_CN.ts ...
+lrelease app_zh_CN.ts               # compile the .ts into app_zh_CN.qm
+```
+
 ## Build it yourself
 
 The build is driven by plain scripts under `hack/wdk-qt/` (each respects
@@ -127,9 +146,11 @@ The build is driven by plain scripts under `hack/wdk-qt/` (each respects
 
 ```bat
 set QT_ARCH=i386
-set QT_LINK=shared
-hack\wdk-qt\clean-build.bat     :: configure + build qtbase into build-wdk-qtbase-i386-shared
-hack\wdk-qt\install.bat         :: nmake install (+ patch static CMake deps)
+set QT_LINK=static
+hack\wdk-qt\clean-build.bat     :: configure + build qtbase into build-wdk-qtbase-i386-static
+hack\wdk-qt\install.bat         :: nmake install (+ patch static CMake deps, drop QtSql)
+hack\wdk-qt\build-qtcharts.bat  :: build Qt5Charts into the same prefix
+hack\wdk-qt\build-i18n.bat      :: build lrelease/lupdate into the prefix bin/
 ```
 
 The WDK is located via `W7BASE` / `WDK7_ROOT` (set by setup-wdk7), falling back
@@ -144,6 +165,16 @@ to `C:\WinDDK\7600.16385.1`.
   (`intrin.h`, `windns.h`, `commoncontrols.h`, …).
 - A handful of small, guarded `qtbase` source patches handle gaps in the old
   STL70 headers and the 32-bit-`time_t` CRT.
+- `configure` disables OpenGL, DBus and SQL (`-no-opengl -no-dbus
+  -no-sql-sqlite`); the QtSql lib body, which Qt 5.6 always builds, is deleted
+  after install. `Network` and `Xml` are kept (useful for GUI apps; note no
+  HTTPS, since `-no-openssl`).
+- `qtcharts` is vendored and built with the same mkspec/shims (only `syncqt` is
+  needed for its forwarding headers). For the static build, the plugin import
+  targets are patched so a GUI app links the platform plugin cleanly.
+- The i18n tools come from the vendored `qttools/src/linguist`; `lupdate` gets
+  an `asInvoker` manifest force-embedded so Windows installer-detection does not
+  flag its `update` name and demand elevation.
 
 ## License
 

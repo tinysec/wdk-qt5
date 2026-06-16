@@ -91,6 +91,10 @@ jobs:
         shell: cmd
         run: call hack\wdk-qt\build-qtcharts.bat
 
+      - name: Build i18n tools (lrelease, lupdate)
+        shell: cmd
+        run: call hack\wdk-qt\build-i18n.bat
+
       - name: Verify zero-redist (no msvcr90/msvcp90)
         shell: pwsh
         run: |

@@ -28,3 +28,4 @@ hack/wdk-qt/fetch-test/build*/
 /build-qtcharts*/
 /build-wdk-qtcharts*.log
 /qtcharts/include/
+hack/wdk-qt/charts-consumer/build*/

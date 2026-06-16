@@ -17,6 +17,16 @@ import sys
 import glob
 
 
+def is_absolute_path(token):
+    """True if the token is an absolute filesystem path (Windows drive or UNIX)."""
+    normalized = token.replace("\\", "/")
+
+    if re.match(r"^[A-Za-z]:/", normalized) is not None:
+        return True
+
+    return normalized.startswith("/")
+
+
 def convert_prl_libs(raw, prefix_var):
     """Convert a QMAKE_PRL_LIBS string into a CMake link-dependency list."""
     items = []
@@ -25,6 +35,16 @@ def convert_prl_libs(raw, prefix_var):
         # 1. qmake's QT_INSTALL_LIBS placeholder -> the relocatable prefix var.
         if token.startswith("-L"):
             continue  # library search dir, redundant once we give full paths
+
+        # An absolute path here is always one of Qt's own build-tree libs
+        # (Qt5*.lib, qtpcre.lib, ...). Those are already pulled in transitively
+        # via the Qt5:: module targets already present in the dependency list,
+        # so dropping them loses nothing and keeps the shipped config
+        # relocatable. A module's genuinely-owned internal libs instead arrive
+        # via the $$[QT_INSTALL_LIBS] token below and stay prefix-relative.
+        if is_absolute_path(token):
+            continue
+
         if "$$[QT_INSTALL_LIBS]" in token:
             tail = token.split("]", 1)[1].lstrip("\\/")  # e.g. qtpcre.lib
             items.append("${%s}/lib/%s" % (prefix_var, tail))

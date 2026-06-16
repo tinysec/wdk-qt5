@@ -38,5 +38,11 @@ if errorlevel 1 ( echo [BUILD FAILED] & exit /b 1 )
 
 echo ============ nmake install (into the qtbase prefix) ============
 nmake install
+
+if /I "%QT_LINK%"=="static" (
+    echo ============ patch static CMake deps (now incl. Qt5Charts) ============
+    python "%~dp0patch-static-cmake-deps.py" "%REPO%\build-wdk-qtbase-%QT_ARCH%-%QT_LINK%\install"
+)
+
 echo ============ qtcharts done (QT_ARCH=%QT_ARCH% QT_LINK=%QT_LINK%) ============
 endlocal

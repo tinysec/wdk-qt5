@@ -30,8 +30,9 @@ links the C++ standard library**. The result:
   `msvcrt.dll`; PE subsystem version `5.00`, so binaries load on Windows XP.
 - ✅ **A minimal desktop-widgets toolkit + Charts** — `Core`, `Gui`, `Widgets`
   and **`Charts`**, plus `Network`, `Xml`, `Concurrent`, `Test`, `PrintSupport`;
-  the `qwindows` platform plugin and image-format plugins; and the `qmake` /
-  `moc` / `rcc` / `uic` tools. **OpenGL, DBus and SQL are disabled**, and the
+  the `qwindows` platform plugin; image formats (PNG/JPEG/GIF/BMP/... built into
+  `Qt5Gui`, plus an `ICO` plugin); and the `qmake` / `moc` / `rcc` / `uic`
+  tools. **OpenGL, DBus and SQL are disabled**, and the
   QML/Quick, Multimedia, WebEngine, SVG, … modules are not built — this is a
   trimmed UI library, not the full Qt.
 - ✅ **i18n** — runtime `QTranslator` / `QLocale` / `tr()` is in `Core`; the
@@ -138,6 +139,21 @@ lupdate main.cpp -ts app_zh_CN.ts   # extract tr() strings into a .ts
 # ... translate app_zh_CN.ts ...
 lrelease app_zh_CN.ts               # compile the .ts into app_zh_CN.qm
 ```
+
+### Image formats
+
+`PNG`, `BMP`, `JPEG`, `GIF`, `PBM`/`PGM`/`PPM`, `XBM`/`XPM` are built into
+`Qt5Gui` and work with no extra setup — in the **static** build they are linked
+right into your `.exe`. `ICO` is the one format that stays a separate plugin; a
+static app that loads `.ico` must import it:
+
+```cpp
+#include <QtPlugin>
+Q_IMPORT_PLUGIN(QICOPlugin)   // static only; link Qt5::QICOPlugin too
+```
+
+For a **shared** build, `JPEG`/`GIF`/`ICO` are DLL plugins under
+`plugins/imageformats/`; `qt5_deploy()` copies them next to the executable.
 
 ## Build it yourself
 

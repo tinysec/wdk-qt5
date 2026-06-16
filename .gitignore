@@ -28,3 +28,4 @@ hack/wdk-qt/fetch-test/build*/
 /build-wdk-qtcharts*.log
 /qtcharts/include/
 
+/build-i18n-*/

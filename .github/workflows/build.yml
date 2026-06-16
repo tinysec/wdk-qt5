@@ -103,11 +103,14 @@ jobs:
           if ($imports -match 'msvcr90|msvcp90') { Write-Error 'VC runtime dependency found!'; exit 1 }
           Write-Output 'OK: no msvcr90/msvcp90 dependency.'
 
-      - name: Package (versioned asset name)
+      - name: Package (versioned asset name; install prefix at archive root)
         shell: pwsh
         run: |
           $name = "qt-${{ needs.version.outputs.version }}-wdk7-$env:QT_LINK-$env:QT_ARCH"
-          7z a -mx=9 "$name.7z" "build-wdk-qtbase-$env:QT_ARCH-$env:QT_LINK\install\*"
+          $out = "$pwd\$name.7z"
+          Push-Location "build-wdk-qtbase-$env:QT_ARCH-$env:QT_LINK\install"
+          7z a -mx=9 "$out" "*"
+          Pop-Location
           Write-Output "Packaged $name.7z"
 
       - name: Upload artifact

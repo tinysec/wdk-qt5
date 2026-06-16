@@ -10,7 +10,7 @@ name: build-qt5-wdk7
 #   3. release  - immutable per-build release on v5.6.3.<build> (marked latest) and
 #                 a rolling alias release/tag v5.6.3 whose asset names DROP the
 #                 build number, giving downstream stable FetchContent URLs:
-#                   releases/download/v5.6.3/qt-wdk7-<link>-<arch>.7z
+#                   releases/download/v5.6.3/qt-wdk7-<link>-<arch>.zip
 #
 # Toolchain comes from tinysec/setup-wdk7 (WDK 7.1 on a hosted runner; no Visual
 # Studio / self-hosted runner). cl 15.00 = the VS2008 SP1 compiler. Platform is
@@ -115,17 +115,18 @@ jobs:
         shell: pwsh
         run: |
           $name = "qt-${{ needs.version.outputs.version }}-wdk7-$env:QT_LINK-$env:QT_ARCH"
-          $out = "$pwd\$name.7z"
+          $out = "$pwd\$name.zip"
           Push-Location "build-wdk-qtbase-$env:QT_ARCH-$env:QT_LINK\install"
-          7z a -mx=9 "$out" "*"
+          # -tzip writes a standard .zip so consumers need no 7-Zip to extract.
+          7z a -tzip -mx=9 "$out" "*"
           Pop-Location
-          Write-Output "Packaged $name.7z"
+          Write-Output "Packaged $name.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: qt-wdk7-${{ matrix.link }}-${{ matrix.arch }}
-          path: qt-*.7z
+          path: qt-*.zip
 
   # 3. Publish the immutable versioned release and re-point the floating alias.
   release:
@@ -152,7 +153,7 @@ jobs:
           set -euo pipefail
 
           # 1. Immutable per-build release on v5.6.3.<build>, kept as "latest".
-          #    Assets keep the build number (qt-v5.6.3.7-wdk7-shared-i386.7z).
+          #    Assets keep the build number (qt-v5.6.3.7-wdk7-shared-i386.zip).
           gh release create "${VERSION}" \
             --target "${GITHUB_SHA}" \
             --title "${VERSION}" \
@@ -166,7 +167,7 @@ jobs:
 
           # 3. Rolling alias release: asset names DROP the build number so the
           #    download URLs are stable across builds, e.g.
-          #    releases/download/v5.6.3/qt-wdk7-shared-i386.7z. Not marked latest.
+          #    releases/download/v5.6.3/qt-wdk7-shared-i386.zip. Not marked latest.
           mkdir -p alias
           for f in $(find dist -type f); do
             base="$(basename "${f}")"

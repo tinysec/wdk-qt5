@@ -1,0 +1,79 @@
+diff --git a/qtbase/qmake/Makefile.win32 b/qtbase/qmake/Makefile.win32
+index 85d6ef4d0..2f2d6ecf4 100644
+--- a/qtbase/qmake/Makefile.win32
++++ b/qtbase/qmake/Makefile.win32
+@@ -19,6 +19,9 @@ CXX               = cl
+ LINKER            = link
+ !  if "$(QMAKESPEC)" == "win32-msvc2005"
+ CFLAGS_EXTRA      = /Zc:wchar_t-
++!  elseif "$(QMAKESPEC)" == "win32-wdk7-msvc2008"
++CFLAGS_EXTRA      = /MP /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS /D_STL70_ /D_STATIC_CPPLIB /D_DLL=1 /D_MT=1 -FI$(SOURCE_PATH)\mkspecs\win32-wdk7-msvc2008\wdk-compat.h $(CFLAGS_CRT)
++LFLAGS_CRT        = /MANIFEST:NO /NODEFAULTLIB:msvcrtd /DEFAULTLIB:ntstc_msvcrt /DEFAULTLIB:msvcrt
+ !  elseif "$(QMAKESPEC)" == "win32-msvc2008" || "$(QMAKESPEC)" == "win32-msvc2010" || "$(QMAKESPEC)" == "win32-msvc2012" || "$(QMAKESPEC)" == "win32-msvc2013"
+ CFLAGS_EXTRA      = /MP /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS $(CFLAGS_CRT)
+ !  elseif "$(QMAKESPEC)" == "win32-msvc2015" || "$(QMAKESPEC)" == "win32-msvc2017"
+@@ -46,7 +49,7 @@ CFLAGS   = -Yuqmake_pch.h -FIqmake_pch.h -Fpqmake_pch.pch $(CFLAGS_BARE) $(CFLAG
+ CXXFLAGS_BARE = $(CFLAGS_BARE)
+ CXXFLAGS = $(CFLAGS)
+ 
+-LFLAGS	    =
++LFLAGS	    = $(LFLAGS_CRT)
+ LIBS	    = ole32.lib advapi32.lib shell32.lib
+ LINKQMAKE   = $(LINKER) $(LFLAGS) -OUT:qmake.exe $(OBJS) $(QTOBJS) $(LIBS)
+ ADDCLEAN    = qmake.pdb qmake.ilk
+diff --git a/qtbase/src/corelib/global/qcompilerdetection.h b/qtbase/src/corelib/global/qcompilerdetection.h
+index e51302f0f..466af1da5 100644
+--- a/qtbase/src/corelib/global/qcompilerdetection.h
++++ b/qtbase/src/corelib/global/qcompilerdetection.h
+@@ -94,10 +94,12 @@
+ #  define Q_DECL_DEPRECATED_X(text) __declspec(deprecated(text))
+ #  define Q_DECL_EXPORT __declspec(dllexport)
+ #  define Q_DECL_IMPORT __declspec(dllimport)
+-#  if _MSC_VER >= 1800
++#  if _MSC_VER >= 1800 && !defined(_STL70_)
+ #    define QT_MAKE_UNCHECKED_ARRAY_ITERATOR(x) stdext::make_unchecked_array_iterator(x)
+ #  endif
+-#  if _MSC_VER >= 1500
++#  if _MSC_VER >= 1500 && !defined(_STL70_)
++/* WDK 7.1 stl70 <iterator> lacks stdext::make_checked_array_iterator; fall back
++   to the raw pointer (defined later via the generic #ifndef block). */
+ #    define QT_MAKE_CHECKED_ARRAY_ITERATOR(x, N) stdext::make_checked_array_iterator(x, size_t(N))
+ #  endif
+ /* Intel C++ disguising as Visual C++: the `using' keyword avoids warnings */
+diff --git a/qtbase/src/corelib/tools/qdatetime.cpp b/qtbase/src/corelib/tools/qdatetime.cpp
+index 8ac268e39..9d9b57f61 100644
+--- a/qtbase/src/corelib/tools/qdatetime.cpp
++++ b/qtbase/src/corelib/tools/qdatetime.cpp
+@@ -2356,8 +2356,15 @@ static bool qt_localtime(qint64 msecsSinceEpoch, QDate *localDate, QTime *localT
+     if (res)
+         valid = true;
+ #elif defined(_MSC_VER) && _MSC_VER >= 1400
++#  ifdef _USE_32BIT_TIME_T
++    // WDK 7.1 CRT defaults time_t to 32-bit; widen for the 64-bit CRT call.
++    __time64_t secs64 = secsSinceEpoch;
++    if (!_localtime64_s(&local, &secs64))
++        valid = true;
++#  else
+     if (!_localtime64_s(&local, &secsSinceEpoch))
+         valid = true;
++#  endif
+ #else
+     // Returns shared static data which may be overwritten at any time
+     // So copy the result asap
+diff --git a/qtbase/src/plugins/platforms/windows/windows.pro b/qtbase/src/plugins/platforms/windows/windows.pro
+index f9f38e182..a7894577a 100644
+--- a/qtbase/src/plugins/platforms/windows/windows.pro
++++ b/qtbase/src/plugins/platforms/windows/windows.pro
+@@ -21,6 +21,12 @@ HEADERS +=  \
+ 
+ OTHER_FILES += windows.json
+ 
++# WDK 7.1 has no comsupp.lib; provide the one _bstr_t symbol the MSAA bridge
++# needs. Only for the WDK spec -- toolchains that ship comsupp.lib (VS) would
++# otherwise get a duplicate _com_issue_error.
++contains(QMAKE_XSPEC, win32-wdk7-msvc2008): \
++    SOURCES += $$PWD/../../../../../hack/wdk-qt/shim/comsupp_stub.cpp
++
+ PLUGIN_TYPE = platforms
+ PLUGIN_CLASS_NAME = QWindowsIntegrationPlugin
+ !equals(TARGET, $$QT_DEFAULT_QPA_PLUGIN): PLUGIN_EXTENDS = -

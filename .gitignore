@@ -23,3 +23,8 @@ hack/wdk-probe/*.exe
 hack/wdk-probe/*.obj
 hack/wdk-probe/*.log
 hack/wdk-qt/fetch-test/build*/
+
+# qtcharts build outputs
+/build-qtcharts*/
+/build-wdk-qtcharts*.log
+/qtcharts/include/

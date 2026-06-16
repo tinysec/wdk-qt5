@@ -4,7 +4,7 @@
 # interface is generic Qt5 (matching find_package(Qt5) / Qt5::Core targets).
 #
 # Options (CMake-idiomatic booleans + one string):
-#   QT5_SHARED       BOOL  (default ON)  ON = shared DLLs, OFF = static libs
+#   QT5_SHARED       BOOL  (default OFF) OFF = static libs, ON = shared DLLs
 #   QT5_FROM_SOURCE  BOOL  (default OFF) OFF = download prebuilt, ON = build here
 #   QT5_ARCH         STRING i386|amd64   (default: follows WDK7_ARCH, else ptr size)
 #
@@ -12,12 +12,20 @@
 #   include(qt5.cmake)
 #   qt5_provide()                         # sets CMAKE_PREFIX_PATH
 #   find_package(Qt5 5.6 REQUIRED COMPONENTS Core Widgets)
+#   add_executable(app main.cpp)
+#   target_link_libraries(app Qt5::Widgets)
+#   qt5_deploy(app)                       # only needed for QT5_SHARED=ON
 #
 # The consumer must also configure with the setup-wdk7 toolchain, e.g.
 #   -DCMAKE_TOOLCHAIN_FILE=wdk7.cmake -DWDK7_ARCH=i386
 # QT5_ARCH defaults to WDK7_ARCH, so set the arch once on the toolchain.
+#
+# The default is STATIC: it links Qt into one self-contained .exe that depends
+# only on the system msvcrt.dll -- no Qt DLLs to ship, which is the whole point
+# of this XP/zero-redist build. Set QT5_SHARED=ON for DLLs (then call qt5_deploy
+# to copy them next to the executable).
 
-option(QT5_SHARED      "Use the shared (DLL) Qt build; OFF = static libs" ON)
+option(QT5_SHARED      "Use the shared (DLL) Qt build; OFF = static, self-contained .exe" OFF)
 option(QT5_FROM_SOURCE "Build Qt from source instead of downloading prebuilt" OFF)
 set(QT5_ARCH "" CACHE STRING "Qt5 arch: i386 | amd64 (default follows WDK7_ARCH)")
 set_property(CACHE QT5_ARCH PROPERTY STRINGS i386 amd64)
@@ -110,4 +118,39 @@ function(qt5_provide)
         set(_src "prebuilt")
     endif()
     message(STATUS "qt5: ${_link}/${_arch} Qt ${_QT5_VERSION} from ${_src} at ${_prefix}")
+endfunction()
+
+# Copy the Qt5 runtime DLLs (and the windows platform plugin) next to a target's
+# executable so a SHARED-linked app runs without adding the Qt bin dir to PATH.
+# No-op for the default static build: there are no Qt DLLs to copy.
+function(qt5_deploy target)
+    if(NOT QT5_SHARED)
+        return()
+    endif()
+    if(QT5_PREFIX STREQUAL "")
+        message(FATAL_ERROR "qt5_deploy: call qt5_provide() before qt5_deploy().")
+    endif()
+
+    # 1. Copy every Qt5 module DLL next to the executable. Copying the whole set
+    #    is simpler and always correct; the few unused DLLs cost only disk.
+    file(GLOB _dlls "${QT5_PREFIX}/bin/Qt5*.dll")
+    foreach(_dll IN LISTS _dlls)
+        add_custom_command(TARGET "${target}" POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${_dll}" "$<TARGET_FILE_DIR:${target}>"
+            VERBATIM)
+    endforeach()
+
+    # 2. A GUI app loads the platform plugin from a platforms/ dir next to the
+    #    exe. Console apps (no QApplication) do not need it, but copying it keeps
+    #    the deploy correct for any Qt app.
+    set(_qpa "${QT5_PREFIX}/plugins/platforms/qwindows.dll")
+    if(EXISTS "${_qpa}")
+        add_custom_command(TARGET "${target}" POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory
+                    "$<TARGET_FILE_DIR:${target}>/platforms"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${_qpa}" "$<TARGET_FILE_DIR:${target}>/platforms"
+            VERBATIM)
+    endif()
 endfunction()

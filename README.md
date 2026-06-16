@@ -89,8 +89,8 @@ Vendor `cmake/qt5.cmake` (or `file(DOWNLOAD …)` it), then:
 ```cmake
 include(qt5.cmake)
 
-set(QT5_SHARED      ON)   # ON = shared DLLs, OFF = static libs
-set(QT5_FROM_SOURCE OFF)  # OFF = download prebuilt, ON = build from source
+# Default is STATIC: one self-contained .exe depending only on msvcrt.dll, which
+# is the point of this XP/zero-redist build. Set QT5_SHARED=ON for DLLs.
 qt5_provide()             # QT5_ARCH follows WDK7_ARCH; sets CMAKE_PREFIX_PATH
 
 find_package(Qt5 5.6 REQUIRED COMPONENTS Core Widgets)
@@ -98,6 +98,7 @@ find_package(Qt5 5.6 REQUIRED COMPONENTS Core Widgets)
 set(CMAKE_AUTOMOC ON)
 add_executable(app WIN32 main.cpp)
 target_link_libraries(app Qt5::Core Qt5::Widgets)
+qt5_deploy(app)           # copies Qt DLLs next to the exe (no-op when static)
 
 # A static Qt build needs the platform plugin imported explicitly:
 if(NOT QT5_SHARED)
@@ -106,11 +107,16 @@ if(NOT QT5_SHARED)
 endif()
 ```
 
+Static (the default) links Qt into the executable: a single `app.exe` that
+depends only on the system `msvcrt.dll` — nothing to deploy. With `QT5_SHARED=ON`
+you get Qt DLLs; `qt5_deploy(app)` then copies them (and the platform plugin)
+next to the `.exe` so it runs without putting the Qt `bin/` on `PATH`.
+
 ### Options
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
-| `QT5_SHARED` | BOOL | `ON` | `ON` = shared DLLs, `OFF` = static libs |
+| `QT5_SHARED` | BOOL | `OFF` | `OFF` = static self-contained .exe, `ON` = shared DLLs |
 | `QT5_FROM_SOURCE` | BOOL | `OFF` | `OFF` = download prebuilt, `ON` = build from source |
 | `QT5_ARCH` | STRING | follows `WDK7_ARCH` | `i386` or `amd64` |
 

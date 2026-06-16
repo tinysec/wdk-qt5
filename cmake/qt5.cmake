@@ -109,7 +109,16 @@ function(qt5_provide)
         message(FATAL_ERROR "qt5: Qt5 CMake package not found under ${_prefix}")
     endif()
 
-    # 3. Expose the prefix so the consumer's find_package(Qt5) resolves it.
+    # 3. A static GUI app links the qwindows plugin, whose objects carry an
+    #    embedded /DEFAULTLIB:comsupp directive (from the MSAA bridge's comdef.h).
+    #    WDK7 has no comsupp.lib and the plugin already bundles the one symbol it
+    #    needs, so suppress the directive on the consumer link. Harmless for a
+    #    static app that does not link the plugin.
+    if(NOT QT5_SHARED)
+        add_link_options(/NODEFAULTLIB:comsupp)
+    endif()
+
+    # 4. Expose the prefix so the consumer's find_package(Qt5) resolves it.
     set(CMAKE_PREFIX_PATH "${_prefix};${CMAKE_PREFIX_PATH}" PARENT_SCOPE)
     set(QT5_PREFIX "${_prefix}" PARENT_SCOPE)
     if(QT5_FROM_SOURCE)

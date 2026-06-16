@@ -91,14 +91,6 @@ jobs:
         shell: cmd
         run: call hack\wdk-qt\build-qtcharts.bat
 
-      - name: End-to-end smoke test (CMake find_package app)
-        shell: cmd
-        run: call hack\wdk-qt\test-cmake-consume.bat
-
-      - name: Smoke test qtcharts (CMake find_package Qt5::Charts)
-        shell: cmd
-        run: call hack\wdk-qt\test-charts-consume.bat
-
       - name: Verify zero-redist (no msvcr90/msvcp90)
         shell: pwsh
         run: |

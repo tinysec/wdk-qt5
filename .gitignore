@@ -28,5 +28,3 @@ hack/wdk-qt/fetch-test/build*/
 /build-wdk-qtcharts*.log
 /qtcharts/include/
 
-# trimmed Qt submodule sources (local backup, not built)
-/bak/

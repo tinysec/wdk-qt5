@@ -23,9 +23,10 @@ echo ============ configure qtbase (WDK7, %LINKFLAG%) ============
 call "%SRC%\configure.bat" -platform win32-wdk7-msvc2008 -make-tool nmake -release %LINKFLAG% -opensource -confirm-license -mp ^
   -nomake examples -nomake tests -no-compile-examples ^
   -no-openssl -no-freetype -no-harfbuzz -no-iconv ^
+  -no-dbus ^
   -no-direct2d -no-directwrite -no-style-fusion ^
-  -qt-zlib -qt-libpng -qt-libjpeg -qt-pcre -qt-sql-sqlite ^
-  -opengl desktop ^
+  -qt-zlib -qt-libpng -qt-libjpeg -qt-pcre ^
+  -no-sql-sqlite -no-opengl ^
   -prefix "%BUILD%\install"
 
 echo ============ configure exit=%errorlevel% ============

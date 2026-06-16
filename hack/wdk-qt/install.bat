@@ -20,5 +20,13 @@ if /I "%QT_LINK%"=="static" (
     python "%~dp0patch-static-cmake-deps.py" "%BUILD%\install"
 )
 
+:: QtSql has no driver (-no-sql-sqlite) and a UI library never uses it. Qt 5.6
+:: has no flag to skip building it, so remove its artifacts from the prefix.
+:: (Network and Xml are kept -- those are genuinely useful for GUI apps.)
+echo ============ drop unused QtSql ============
+del /q "%BUILD%\install\lib\Qt5Sql.lib" "%BUILD%\install\lib\Qt5Sql.prl" "%BUILD%\install\bin\Qt5Sql.dll" 2>nul
+if exist "%BUILD%\install\include\QtSql"    rmdir /s /q "%BUILD%\install\include\QtSql"
+if exist "%BUILD%\install\lib\cmake\Qt5Sql" rmdir /s /q "%BUILD%\install\lib\cmake\Qt5Sql"
+
 echo ============ install done: %BUILD%\install ============
 endlocal

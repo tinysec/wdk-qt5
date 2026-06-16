@@ -9,7 +9,6 @@
 /qtbase/include/QtCore/QtConfig
 
 # test/consumer build artifacts under hack/wdk-qt
-hack/wdk-qt/cmake-consumer/build*/
 hack/wdk-qt/testapp/build*/
 hack/wdk-qt/testapp/release/
 hack/wdk-qt/testapp/debug/
@@ -28,4 +27,3 @@ hack/wdk-qt/fetch-test/build*/
 /build-qtcharts*/
 /build-wdk-qtcharts*.log
 /qtcharts/include/
-hack/wdk-qt/charts-consumer/build*/

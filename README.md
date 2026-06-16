@@ -113,8 +113,6 @@ endif()
 | `QT5_SHARED` | BOOL | `ON` | `ON` = shared DLLs, `OFF` = static libs |
 | `QT5_FROM_SOURCE` | BOOL | `OFF` | `OFF` = download prebuilt, `ON` = build from source |
 | `QT5_ARCH` | STRING | follows `WDK7_ARCH` | `i386` or `amd64` |
-| `QT5_RELEASE` | STRING | `v5.6.3` | floating alias, or pin `v5.6.3.<build>` |
-| `QT5_VERSION` | STRING | `5.6.3` | Qt point release |
 
 ## Build it yourself
 

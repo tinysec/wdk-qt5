@@ -3,12 +3,10 @@
 # 5.6.3 is just the specific Qt 5 point release this repo builds; the consumer
 # interface is generic Qt5 (matching find_package(Qt5) / Qt5::Core targets).
 #
-# Options (CMake-idiomatic booleans + a couple of strings):
+# Options (CMake-idiomatic booleans + one string):
 #   QT5_SHARED       BOOL  (default ON)  ON = shared DLLs, OFF = static libs
 #   QT5_FROM_SOURCE  BOOL  (default OFF) OFF = download prebuilt, ON = build here
 #   QT5_ARCH         STRING i386|amd64   (default: follows WDK7_ARCH, else ptr size)
-#   QT5_VERSION      STRING Qt point release (default 5.6.3)
-#   QT5_RELEASE      STRING release tag (default v5.6.3 floating alias; pin vX.Y.Z.N)
 #
 # Usage in the consumer:
 #   include(qt5.cmake)
@@ -21,16 +19,14 @@
 
 option(QT5_SHARED      "Use the shared (DLL) Qt build; OFF = static libs" ON)
 option(QT5_FROM_SOURCE "Build Qt from source instead of downloading prebuilt" OFF)
-set(QT5_ARCH    ""        CACHE STRING "Qt5 arch: i386 | amd64 (default follows WDK7_ARCH)")
-set(QT5_VERSION "5.6.3"   CACHE STRING "Qt5 point release built by this repo")
-# Default to the FLOATING alias tag: it always points at the latest CI build and
-# its asset names are stable, so this URL never changes. Pin a versioned tag
-# (e.g. v5.6.3.42) for a reproducible build.
-set(QT5_RELEASE "v5.6.3"  CACHE STRING "Prebuilt release tag (alias or versioned)")
+set(QT5_ARCH "" CACHE STRING "Qt5 arch: i386 | amd64 (default follows WDK7_ARCH)")
 set_property(CACHE QT5_ARCH PROPERTY STRINGS i386 amd64)
 
-# This is a public repo, so downloads need no token and the URL is fixed.
-set(_QT5_REPO "https://github.com/tinysec/wdk-qt5")
+# Fixed facts about this repo: a public URL, the Qt point release it builds, and
+# the floating alias release/tag (always the latest CI build, stable asset URLs).
+set(_QT5_REPO    "https://github.com/tinysec/wdk-qt5")
+set(_QT5_VERSION "5.6.3")
+set(_QT5_RELEASE "v5.6.3")
 
 # Resolve the arch: explicit QT5_ARCH > WDK7_ARCH (set for the toolchain) > size.
 function(_qt5_resolve_arch out_var)
@@ -67,16 +63,10 @@ function(qt5_provide)
     endif()
 
     if(NOT QT5_FROM_SOURCE)
-        # 1. Download the matching prebuilt package. The floating alias release
-        #    (vX.Y.Z) carries stable asset names; a pinned versioned release
-        #    (vX.Y.Z.N) carries build-numbered names.
-        if(QT5_RELEASE MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+$")
-            set(_asset "qt-wdk7-${_link}-${_arch}.zip")
-        else()
-            set(_asset "qt-${QT5_RELEASE}-wdk7-${_link}-${_arch}.zip")
-        endif()
-
-        set(_url "${_QT5_REPO}/releases/download/${QT5_RELEASE}/${_asset}")
+        # 1. Download the matching prebuilt package from the floating alias
+        #    release; its asset names are stable, so this URL never changes.
+        set(_asset "qt-wdk7-${_link}-${_arch}.zip")
+        set(_url "${_QT5_REPO}/releases/download/${_QT5_RELEASE}/${_asset}")
         FetchContent_Declare(qt5_pkg URL "${_url}"
             DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
         FetchContent_MakeAvailable(qt5_pkg)
@@ -86,7 +76,7 @@ function(qt5_provide)
         # 2. Clone the source and build the requested variant at configure time.
         FetchContent_Declare(qt5_src
             GIT_REPOSITORY "${_QT5_REPO}.git"
-            GIT_TAG "${QT5_RELEASE}")
+            GIT_TAG "${_QT5_RELEASE}")
         FetchContent_MakeAvailable(qt5_src)
 
         set(_prefix "${qt5_src_SOURCE_DIR}/build-wdk-qtbase-${_arch}-${_link}/install")
@@ -119,5 +109,5 @@ function(qt5_provide)
     else()
         set(_src "prebuilt")
     endif()
-    message(STATUS "qt5: ${_link}/${_arch} Qt ${QT5_VERSION} from ${_src} at ${_prefix}")
+    message(STATUS "qt5: ${_link}/${_arch} Qt ${_QT5_VERSION} from ${_src} at ${_prefix}")
 endfunction()

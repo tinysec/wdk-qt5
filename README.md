@@ -46,16 +46,16 @@ Each CI build publishes:
 
 | Release | Marked | Asset names | Use for |
 |---|---|---|---|
-| `v5.6.3.<build>` | latest | `qt-v5.6.3.<build>-wdk7-<link>-<arch>.7z` | reproducible pin |
-| `v5.6.3` (alias) | — | `qt-wdk7-<link>-<arch>.7z` (stable URL) | track latest |
+| `v5.6.3.<build>` | latest | `qt-v5.6.3.<build>-wdk7-<link>-<arch>.zip` | reproducible pin |
+| `v5.6.3` (alias) | — | `qt-wdk7-<link>-<arch>.zip` (stable URL) | track latest |
 
 `<link>` is `shared` or `static`; `<arch>` is `i386` or `amd64`. Stable URL form:
 
 ```
-https://github.com/tinysec/wdk-qt5/releases/download/v5.6.3/qt-wdk7-<link>-<arch>.7z
+https://github.com/tinysec/wdk-qt5/releases/download/v5.6.3/qt-wdk7-<link>-<arch>.zip
 ```
 
-Each `.7z` is an install prefix (`bin/`, `lib/`, `include/`, `plugins/`,
+Each `.zip` is an install prefix (`bin/`, `lib/`, `include/`, `plugins/`,
 `lib/cmake/`).
 
 ## Use in CMake
@@ -115,8 +115,6 @@ endif()
 | `QT5_ARCH` | STRING | follows `WDK7_ARCH` | `i386` or `amd64` |
 | `QT5_RELEASE` | STRING | `v5.6.3` | floating alias, or pin `v5.6.3.<build>` |
 | `QT5_VERSION` | STRING | `5.6.3` | Qt point release |
-| `QT5_REPO` | STRING | this repo URL | base GitHub repo URL |
-| `QT5_TOKEN` | STRING | `GH_TOKEN`/`GITHUB_TOKEN` env | token for a private-repo download |
 
 ## Build it yourself
 

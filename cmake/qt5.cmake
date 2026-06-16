@@ -162,4 +162,18 @@ function(qt5_deploy target)
                     "${_qpa}" "$<TARGET_FILE_DIR:${target}>/platforms"
             VERBATIM)
     endif()
+
+    # 3. Image format plugins (qico/qjpeg/qgif) load at runtime from an
+    #    imageformats/ dir next to the exe. Without them only the built-in
+    #    formats (PNG/BMP/...) work; copying them lets a shared app load
+    #    .ico/.jpg/.gif. PNG/BMP are built into QtGui and need no plugin.
+    file(GLOB _imgfmts "${QT5_PREFIX}/plugins/imageformats/*.dll")
+    foreach(_img IN LISTS _imgfmts)
+        add_custom_command(TARGET "${target}" POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory
+                    "$<TARGET_FILE_DIR:${target}>/imageformats"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${_img}" "$<TARGET_FILE_DIR:${target}>/imageformats"
+            VERBATIM)
+    endforeach()
 endfunction()

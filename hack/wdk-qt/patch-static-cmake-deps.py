@@ -125,20 +125,99 @@ def patch_config(config_path, prefix):
     return True
 
 
+def patch_plugin(plugin_cmake_path, prefix):
+    """Inject a static plugin's private static-lib deps into its import target.
+
+    Qt 5.6 generates Qt5Gui_<Plugin>.cmake with only the plugin's own .lib and no
+    link interface, so a static consumer that imports e.g.
+    Qt5::QWindowsIntegrationPlugin is missing Qt5PlatformSupport.lib / Qt5DBus.lib
+    (private static libs with no Qt5:: target) and fails to link. Those deps ARE
+    listed in the plugin's .prl. Read it and append them as relocatable paths to
+    the plugin target's INTERFACE_LINK_LIBRARIES.
+    """
+    with open(plugin_cmake_path, "r", encoding="utf-8", errors="replace") as plugin_file:
+        text = plugin_file.read()
+
+    if "_qt5_plugin_deps_patched" in text:
+        return False  # already patched (idempotent re-run)
+
+    # 1. Plugin target name + its .lib path, e.g. (QWindowsIntegrationPlugin,
+    #    "platforms/qwindows.lib"), from the _populate_*_plugin_properties call.
+    match = re.search(
+        r'_populate_\w+_plugin_properties\(\s*(\w+)\s+\w+\s+"([^"]+)"', text)
+    if match is None:
+        return False
+
+    plugin_name = match.group(1)
+    plugin_rel = match.group(2)
+
+    # 2. Locate the matching .prl next to the plugin .lib under plugins/.
+    if plugin_rel.endswith(".lib"):
+        plugin_rel = plugin_rel[:-len(".lib")]
+
+    prl_path = os.path.join(prefix, "plugins", plugin_rel + ".prl")
+    if not os.path.exists(prl_path):
+        return False
+
+    raw_libs = ""
+    with open(prl_path, "r", encoding="utf-8", errors="replace") as prl_file:
+        for line in prl_file:
+            if line.startswith("QMAKE_PRL_LIBS"):
+                raw_libs = line.split("=", 1)[1].strip()
+                break
+
+    if 0 == len(raw_libs):
+        return False
+
+    # 3. The plugin cmake lives in lib/cmake/Qt5<Module>/, whose config defines
+    #    _qt5<Module>_install_prefix. Derive it from the directory name.
+    module = os.path.basename(os.path.dirname(plugin_cmake_path))[len("Qt5"):]  # Gui
+    prefix_var = "_qt5%s_install_prefix" % module
+
+    deps = convert_prl_libs(raw_libs, prefix_var)
+
+    # Keep only the prefix-relative Qt static libs (Qt5PlatformSupport, Qt5DBus,
+    # ...): those have no Qt5:: target the consumer could link otherwise. System
+    # import libs are already on the consumer's link line.
+    deps = [dep for dep in deps if prefix_var in dep]
+    if 0 == len(deps):
+        return False
+
+    addition = (
+        '\n# _qt5_plugin_deps_patched: static private deps with no Qt5:: target\n'
+        'set_property(TARGET Qt5::%s APPEND PROPERTY INTERFACE_LINK_LIBRARIES "%s")\n'
+        % (plugin_name, ";".join(deps)))
+
+    with open(plugin_cmake_path, "a", encoding="utf-8") as plugin_file:
+        plugin_file.write(addition)
+
+    print("patched plugin %s += %s" % (plugin_name, ";".join(deps)))
+    return True
+
+
 def main():
     if len(sys.argv) < 2:
         print("usage: patch-static-cmake-deps.py <install-prefix>")
         return 1
 
     prefix = sys.argv[1]
-    pattern = os.path.join(prefix, "lib", "cmake", "Qt5*", "Qt5*Config.cmake")
 
-    count = 0
-    for config_path in glob.glob(pattern):
+    # 1. Module configs (Qt5Core, Qt5Gui, ...): fill _Qt5<Mod>_LIB_DEPENDENCIES.
+    config_pattern = os.path.join(prefix, "lib", "cmake", "Qt5*", "Qt5*Config.cmake")
+    module_count = 0
+    for config_path in glob.glob(config_pattern):
         if patch_config(config_path, prefix):
-            count += 1
+            module_count += 1
 
-    print("patched %d module config(s)" % count)
+    # 2. Plugin import targets (Qt5Gui_QWindowsIntegrationPlugin, ...): add their
+    #    private static-lib deps so a static GUI app links the platform plugin.
+    plugin_pattern = os.path.join(prefix, "lib", "cmake", "Qt5*", "Qt5*_*Plugin.cmake")
+    plugin_count = 0
+    for plugin_path in glob.glob(plugin_pattern):
+        if patch_plugin(plugin_path, prefix):
+            plugin_count += 1
+
+    print("patched %d module config(s), %d plugin(s)" % (module_count, plugin_count))
     return 0
 
 
